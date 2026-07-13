@@ -2,15 +2,17 @@ import { Pen, Trash } from "lucide-react";
 import SearcBar from "./shared/SearchBar";
 import api from "../api/axios";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Popup from "./shared/Popup";
 import AddCli from "./Add/AddCli";
 import AddVoit from './Add/AddVoit'
-import AddReservation from "./Add/AddReservation"
+import ModifReserver from "./ModifReserver";
+import Select from "./shared/Select";
 
 export default function List() {
     const [clients, setClients] = useState([]);
     const { type } = useParams();
+    const navigate = useNavigate()
 
     //popup
     const [popupState, setPopupState] = useState("idle");
@@ -19,6 +21,7 @@ export default function List() {
 
     const [popType, setPopType]= useState("none")
     const [dataSend, setdataSend] = useState({})
+    const [options, setOptions] = useState("")
 
     const fetchClients = async () => {
         try {
@@ -40,18 +43,18 @@ export default function List() {
         }
     };
 
+    const getClients = async () => {
+        const data = await fetchClients();
+        if (data) {
+            setClients(data);
+        }
+    };
     useEffect(() => {
-        const getClients = async () => {
-            const data = await fetchClients();
-            if (data) {
-                setClients(data);
-            }
-        };
         getClients();
     }, [type]); 
     
     const keys = clients && clients.length > 0 
-        ? Object.keys(clients[0]).filter(key => key !== 'idcli' && key !== 'idreserv')
+        ? Object.keys(clients[0]).filter(key => key !== 'idcli' )
         : [];
 
     // Étape 1 : L'utilisateur clique sur la corbeille -> On ouvre la confirmation
@@ -82,7 +85,7 @@ export default function List() {
             
             // Rafraîchir la liste localement après suppression
             setClients(prev => prev.filter(client => {
-                const currentId = type === "reservation" ? client.idreservation : type === "voiture" ? client.matricule : client.idcli;
+                const currentId = type === "reservation" ? client.idreserv : type === "voiture" ? client.matricule : client.idcli;
                 return currentId !== idToDelete;
             }));
 
@@ -140,11 +143,42 @@ export default function List() {
         }
     }
 
+    // Corrigé pour prendre l'objet client en paramètre et rediriger correctement selon le type
+    const redirectIt = (client)=>{
+        switch (type) {
+            case "reservation":
+                navigate(`/info-reservation/${client.idreserv}`)
+                break;
+            case "voiture":
+                navigate(`/info-voiture/${client.matricule}`)
+                break;
+            default:
+                break;
+        }
+    }
+
+    const filtrApi = async (id)=>{
+        try {
+            let res = await api.get(`/reservation?type=${id}`);
+            setClients(res.data)
+            return res.data
+        } catch (error) {
+            console.log("Erreur "+ error);
+            return []; 
+        }
+    }
+
+    const filtrer = (val)=>{
+        setOptions(val)
+        const data = filtrApi(val) // Utilise directement 'val' au lieu de 'options'
+    }
+
     const closePopUp = (mess)=>{
         // console.log("Closed");
         setPopType("none")
         setpopMess(mess)
         setPopupState("success")
+        getClients()
     }
 
     return (
@@ -165,15 +199,17 @@ export default function List() {
                     <AddVoit modifInfo={dataSend}
                      className="absolute"
                      modif={true}
+                     onChanged={()=>closePopUp("Voiture modifié")}
                      />
                 </div>
             }
             {
                 popType === "reservation" &&
-                <AddReservation modifInfo={dataSend}
+                <ModifReserver
+                modifInfo={dataSend}
+                onChanged={() => closePopUp("Réservation modifiée")}
                 className="absolute"
-                modif={true}
-                />
+            />
             }
 
             {/* Popup de Confirmation */}
@@ -197,8 +233,19 @@ export default function List() {
                 <p>{popMess}</p>
             </Popup>
 
-            <p className="text-primary text-2xl ">Liste des {type || "client"}s</p>
-            <h1></h1>
+            <div className="grid grid-cols-[1fr_250px] items-center">
+                <p className="text-primary text-2xl ">Liste des {type || "client"}s</p>
+                {
+                    type == "reservation" &&
+                    <Select 
+                        options={["Aucun filtre","Tout payé", "Sans avance", "Avec avance"]}
+                        label="Genre de payement du client"
+                        value={options} 
+                        onChange={(e)=>filtrer(e.target.value)} 
+                        name="payement"
+                    />
+                }
+            </div>
 
             {/* La SearchBar s'affiche UNIQUEMENT si on est sur la route des clients */}
             {(!type || type === "client") && (
@@ -209,6 +256,7 @@ export default function List() {
             )}
 
             <table className="w-full mt-5 **:font-normal" >
+                {/* Table header */}
                 <thead className="bg-primary text-text
                   [&_th]:p-2 [&_>_th]:px-5
                   [&_th]:first:rounded-tl-xl
@@ -222,6 +270,8 @@ export default function List() {
                         <th className="bg-secondary w-20.5"></th>
                     </tr>
                 </thead>
+
+                {/* table body */}
                 <tbody className="[&_td]:p-2 [&_>_td]:text-text-secondary
                 [&_tr]:even:bg-primary-light/30
                 [&_tr]:even:text-text-secondary/95
@@ -243,16 +293,18 @@ export default function List() {
                         }
 
                         return (
-                            <tr key={idValue || index}>
+                            // Corrigé pour passer la fonction fléchée au clic sur la ligne entière
+                            <tr key={idValue || index} onClick={() => redirectIt(client)} className="cursor-pointer">
                                 {keys.map((key) => (
                                     <td key={key}>{client[key]}</td>
                                 ))}
-                                <td className="flex justify-between px-2 bg-primary-light/5">
-                                    <button className="opacity-60 hover:opacity-100">
-                                        <Pen className="hover:text-secondary" onClick={() => modif(client)} /> 
+                                {/* e.stopPropagation() empêche le clic sur les actions de déclencher redirectIt */}
+                                <td className="flex justify-between px-2 bg-primary-light/5" onClick={(e) => e.stopPropagation()}>
+                                    <button type="button" className="opacity-60 hover:opacity-100" onClick={() => modif(client)}>
+                                        <Pen className="hover:text-secondary" /> 
                                     </button>
-                                    <button className="opacity-60 hover:opacity-100">
-                                        <Trash className="hover:text-red-500" onClick={() => confirm(idValue)} /> 
+                                    <button type="button" className="opacity-60 hover:opacity-100" onClick={() => confirm(idValue)}>
+                                        <Trash className="hover:text-red-500" /> 
                                     </button>
                                 </td>
                             </tr>

@@ -126,42 +126,42 @@ final class PLACEController extends AbstractController
     /**
  * Route HTTP publique pour modifier l'occupation d'une place.
  */
-#[Route('/api/place', name: 'api_place_update', methods: ['PATCH'])]
-public function updateHttp(PLACERepository $placeRepository, VOITURERepository $voitureRepository, EntityManagerInterface $em, Request $req): JsonResponse
-{
-    try {
-        $data = json_decode($req->getContent(), true);
+    #[Route('/api/place', name: 'api_place_update', methods: ['PATCH'])]
+    public function updateHttp(PLACERepository $placeRepository, VOITURERepository $voitureRepository, EntityManagerInterface $em, Request $req): JsonResponse
+    {
+        try {
+            $data = json_decode($req->getContent(), true);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return $this->json(["message" => "JSON invalide"], 400);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->json(["message" => "JSON invalide"], 400);
+            }
+
+            if (empty($data['idvoit']) || !isset($data['place']) || !isset($data['occupation'])) {
+                return $this->json(["message" => "idvoit, place et occupation sont obligatoires"], 400);
+            }
+
+            $voiture = $voitureRepository->find($data['idvoit']);
+            if (!$voiture) {
+                return $this->json(["message" => "Cette voiture n'existe pas"], 404);
+            }
+
+            $placeT = $placeRepository->findOneBy(["idvoit" => $voiture, "place" => (int) $data['place']]);
+            if (!$placeT) {
+                return $this->json(["message" => "Cette place n'existe pas"], 404);
+            }
+
+            $this->update($placeRepository, $em, $voiture, $placeT, (string) $data['occupation']);
+            $em->flush();
+
+            return $this->json(["message" => "Place modifiée avec succès"], 200);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                "message" => "Erreur lors de la modification",
+                "error" => $e->getMessage()
+            ], 500);
         }
-
-        if (empty($data['idvoit']) || !isset($data['place']) || !isset($data['occupation'])) {
-            return $this->json(["message" => "idvoit, place et occupation sont obligatoires"], 400);
-        }
-
-        $voiture = $voitureRepository->find($data['idvoit']);
-        if (!$voiture) {
-            return $this->json(["message" => "Cette voiture n'existe pas"], 404);
-        }
-
-        $placeT = $placeRepository->findOneBy(["idvoit" => $voiture, "place" => (int) $data['place']]);
-        if (!$placeT) {
-            return $this->json(["message" => "Cette place n'existe pas"], 404);
-        }
-
-        $this->update($placeRepository, $em, $voiture, $placeT, (string) $data['occupation']);
-        $em->flush();
-
-        return $this->json(["message" => "Place modifiée avec succès"], 200);
-
-    } catch (\Exception $e) {
-        return $this->json([
-            "message" => "Erreur lors de la modification",
-            "error" => $e->getMessage()
-        ], 500);
     }
-}
 
 /**
  * Méthode interne réutilisable (appelée depuis RESERVERController pour occuper/libérer
@@ -227,7 +227,7 @@ public function getByVoiture(PLACERepository $placeRepository, VOITURERepository
             $places[] = [
                 "idvoit" => $place->getIdvoit()->getIdvoit(),
                 "place"  => $place->getPlace(),
-                "occupe" => (bool) $place->getOccupation() // Changé de "occupation" à "occupe" + cast en booléen
+                "occupation" => $place->getOccupation() // Changé de "occupation" à "occupe" + cast en booléen
             ];
         }
 

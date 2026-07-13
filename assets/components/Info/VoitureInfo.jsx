@@ -2,14 +2,15 @@ import { Car } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../api/axios";
+import Place from "../Place";
 
 export default function VoitureInfo() {
     const initial = {
-        idvoit : "1862 TBE",
-        design: "Crafter",
-        type: "VIP",
-        nbrplace: 5,
-        frais: 5000
+        idvoit : "",
+        design: "",
+        type: "",
+        nbrplace: 0,
+        frais: 0
     }
     const {id} = useParams();
 
@@ -18,6 +19,8 @@ export default function VoitureInfo() {
     const getInfos = async ()=>{
         try {
             const res = await api.get(`/voiture/${id}`)
+            console.log(res.data);
+            
             return res.data
         } catch (error) {
             console.log("Erreur : " + error );
@@ -54,6 +57,7 @@ export default function VoitureInfo() {
                 </p>
             </div>
             <h2>Nombre de place : {voiture.nbrplace} </h2>
+            <Place idVoit={voiture.idvoit} onSelectPlace={()=>{}}/>
         </div>
     )
 }

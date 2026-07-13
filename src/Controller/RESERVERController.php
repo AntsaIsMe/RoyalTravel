@@ -15,18 +15,49 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 final class RESERVERController extends AbstractController
 {
-    #[Route('/api/reservation', name: 'app_reservation', methods :['GET'])]
-    public function index(RESERVERRepository $resRep): JsonResponse
+    #[Route('/api/reservation', name: 'app_reservation', methods: ['GET'])]
+    public function index(RESERVERRepository $resRep, Request $req): JsonResponse
     {
         try {
-            $query = $resRep->createQueryBuilder('r')
-            ->select('r.idreserv, v.idvoit, c.idcli, c.nom, r.datereserv, r.datevoyage, r.payement, r.montant_avance')
-            ->addSelect('p.place as num_place') 
-            ->join('r.idvoit', 'v')
-            ->join('r.idcli', 'c')
-            ->join('r.place', 'p')
-            ->getQuery();
+            $type = trim(urldecode($req->query->get('type', '')));
 
+            $queryBuilder = $resRep->createQueryBuilder('r')
+                ->select('r.idreserv, v.idvoit, c.idcli, c.nom, r.datereserv, r.datevoyage, r.payement, r.montant_avance')
+                ->addSelect('p.place as num_place')
+                ->join('r.idvoit', 'v')
+                ->join('r.idcli', 'c')
+                ->join('r.place', 'p', 'WITH', 'p.idvoit = v.idvoit');
+
+                // Filter 
+            if (!empty($type)) {
+                switch ($type) {
+                    case 'Tout payé':
+                        $queryBuilder->andWhere("r.payement = :payementComplet")
+                            ->setParameter('payementComplet', 'Tout payé');
+                        break;
+                
+                    case 'Sans avance':
+                    case 'sans_avance':
+                        $queryBuilder->andWhere(
+                            "r.payement = :sansAvance OR (r.payement = :avecAvance AND (r.montant_avance = 0 OR r.montant_avance IS NULL))"
+                        )
+                        ->setParameter('sansAvance', 'Sans avance')
+                        ->setParameter('avecAvance', 'Avec avance');
+                        break;
+                
+                    case 'Avec avance':
+                    case 'avance':
+                        $queryBuilder->andWhere('r.payement = :avecAvanceText AND r.montant_avance > 0')
+                            ->setParameter('avecAvanceText', 'Avec avance');
+                        break;
+                
+                    default:
+                        break;
+                }
+            }
+
+            // 3. On génère la Query FINALE ici
+            $query = $queryBuilder->getQuery();
             $resBrut = $query->getScalarResult();
 
             if (empty($resBrut)) {
@@ -35,63 +66,45 @@ final class RESERVERController extends AbstractController
 
             $reservation = [];
 
-            foreach($resBrut as $res) {
-                try {
-                    // Vérification que tous les champs requis existent
-                    if (!isset($res['idreserv'], $res['idvoit'], $res['idcli'], $res['nom'], $res['num_place'])) {
-                        throw new \Exception('Données incomplètes dans la réservation');
-                    }
-
-                    $datereserv = null;
-                    $datevoyage = null;
-
-                    // Gestion de la conversion des dates
-                    if (!empty($res['datereserv'])) {
-                        try {
-                            $datereserv = (new \DateTime($res['datereserv']))->format('Y-m-d H:i:s');
-                        } catch (\Exception $e) {
-                            throw new \Exception('Format de date invalide pour datereserv: ' . $res['datereserv']);
-                        }
-                    }
-
-                    if (!empty($res['datevoyage'])) {
-                        try {
-                            $datevoyage = (new \DateTime($res['datevoyage']))->format('Y-m-d');
-                        } catch (\Exception $e) {
-                            throw new \Exception('Format de date invalide pour datevoyage: ' . $res['datevoyage']);
-                        }
-                    }
-
-                    $format = [
-                        "idreserv"       => $res['idreserv'],
-                        "matricule"         => $res['idvoit'],
-                        "idcli"          => $res['idcli'],
-                        "nom"            => $res['nom'],
-                        "place"          => (int)$res['num_place'],
-                        "date de réservation"     => $datereserv,
-                        "date de voyage"     => $datevoyage,
-                        "payement"       => $res['payement'] ?? null,
-                        "montant de l'avance" => (int)($res['montant_avance'] ?? 0)
-                    ];
-                    array_push($reservation, $format);
-                } catch (\Exception $e) {
-                    return $this->json([
-                        'error' => 'Erreur lors du traitement des données de réservation',
-                        'details' => $e->getMessage()
-                    ], 400);
+            foreach ($resBrut as $res) {
+                if (!isset($res['idreserv'], $res['idvoit'], $res['idcli'], $res['nom'], $res['num_place'])) {
+                    continue; // Évite de faire planter toute l'API pour une seule ligne corrompue
                 }
+
+                $datereserv = null;
+                $datevoyage = null;
+
+                // Gestion robuste des dates (chaîne ou objet DateTime)
+                if (!empty($res['datereserv'])) {
+                    $datereserv = $res['datereserv'] instanceof \DateTimeInterface 
+                        ? $res['datereserv']->format('Y-m-d H:i:s') 
+                        : (new \DateTime($res['datereserv']))->format('Y-m-d H:i:s');
+                }
+
+                if (!empty($res['datevoyage'])) {
+                    $datevoyage = $res['datevoyage'] instanceof \DateTimeInterface 
+                        ? $res['datevoyage']->format('Y-m-d') 
+                        : (new \DateTime($res['datevoyage']))->format('Y-m-d');
+                }
+
+                $reservation[] = [
+                    "idreserv"            => $res['idreserv'],
+                    "matricule"           => $res['idvoit'],
+                    "idcli"               => $res['idcli'],
+                    "nom"                 => $res['nom'],
+                    "place"               => (int)$res['num_place'],
+                    "date de réservation" => $datereserv,
+                    "date de voyage"      => $datevoyage,
+                    "payement"            => $res['payement'] ?? null,
+                    "montant de l'avance" => (int)($res['montant_avance'] ?? 0)
+                ];
             }
 
             return $this->json($reservation, 200);
 
-        } catch (\Doctrine\ORM\Exception\RepositoryException $e) {
-            return $this->json([
-                'error' => 'Erreur d\'accès au dépôt',
-                'details' => $e->getMessage()
-            ], 500);
         } catch (\Exception $e) {
             return $this->json([
-                'error' => 'Une erreur est survenue lors de la récupération des réservations',
+                'error'   => 'Une erreur est survenue lors de la récupération des réservations',
                 'details' => $e->getMessage()
             ], 500);
         }
@@ -110,14 +123,14 @@ final class RESERVERController extends AbstractController
             }
 
             $query = $resRep->createQueryBuilder('r')
-            ->select('r.idreserv, v.idvoit, c.idcli, c.nom, c.numtel, r.datereserv, r.datevoyage, r.payement, r.montant_avance')
-            ->addSelect('p.place as num_place') 
-            ->join('r.idvoit', 'v')
-            ->join('r.idcli', 'c')
-            ->join('r.place', 'p')
-            ->where('r.idreserv LIKE :val')
-            ->setParameter('val', $idreserv)
-            ->getQuery();
+                ->select('r.idreserv, v.idvoit, c.idcli, c.nom, c.numtel, r.datereserv, r.datevoyage, r.payement, r.montant_avance')
+                ->addSelect('p.place as num_place')
+                ->join('r.idvoit', 'v')
+                ->join('r.idcli', 'c')
+                ->join('r.place', 'p', 'WITH', 'p.idvoit = v.idvoit')
+                ->where('r.idreserv = :val')
+                ->setParameter('val', $idreserv)
+                ->getQuery();
 
             $resBrut = $query->getScalarResult();
 
@@ -178,7 +191,7 @@ final class RESERVERController extends AbstractController
                 }
             }
 
-            return $this->json($reservation, 200);
+            return $this->json($reservation[0], 200);
 
         } catch (\Doctrine\ORM\Exception\RepositoryException $e) {
             return $this->json([

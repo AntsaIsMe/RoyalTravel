@@ -86,7 +86,7 @@ final class VoitureController extends AbstractController
                 $voiture = [
                     "idvoit" => $voitures->getIdvoit(),
                     "design" => $voitures->getDesign(),
-                    "type" => $voitures->getNbrplace(),
+                    "type" => $voitures->getType(),
                     "frais" => $voitures->getFrais(),
                     "nbrplace" => $voitures->getNbrplace()
 
@@ -160,10 +160,6 @@ final class VoitureController extends AbstractController
             if(!$voiture) return $this->json(['message' => "Cette voiture n'extiste pas"] ,404);
             // dd($idvoit);
 
-            if (!empty($data["idvoit"])) {
-                $voitureT = $voitureRep->findOneBy(["idvoit" => $data['idvoit']]);
-                if($voitureT) return $this->json(['message' => "Une voiture avec cette matricule existe deja"] ,400);
-            }
 
             $nbrplaceOld = $voiture->getNbrplace();
             $nbrplaceNew = isset($data['nbrplace']) ? (int)$data['nbrplace'] : $nbrplaceOld;

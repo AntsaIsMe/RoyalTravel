@@ -17,7 +17,7 @@ export default function SearcBar({ onSearch, placeholder =  "Rechercher un clien
         const val = e.target.value;
         setQuery(val);
         // Décommente la ligne du dessous si tu veux une recherche instantanée sans cliquer sur la loupe
-        // if (onSearch) onSearch(val);
+        if (onSearch) onSearch(val);
     };
 
     return (

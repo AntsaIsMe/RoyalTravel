@@ -12,10 +12,8 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
         if (!idVoit) return;
         
         setLoading(true);
-        // encodeURIComponent sécurise l'URL si l'identifiant contient des caractères spéciaux
         api.get(`/place/voiture/${encodeURIComponent(idVoit)}`)
             .then((res) => {
-                // Avec Axios, les données se trouvent directement dans res.data
                 const data = res.data;
                 const placesArray = Array.isArray(data) ? data : (data ? [data] : []);
                 setPlaces(placesArray);
@@ -32,7 +30,7 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
     const style2 = "grid-cols-4";
     let style;
     
-    console.log(places, idVoit);
+    // console.log(places, idVoit);
     
     let len = places.length - 2;
     if (len % 3 === 0) {
@@ -53,7 +51,7 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
     }
 
     return (
-        <div className="flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center">
             <div className={`
                 grid w-fit
                 [&_>_div]:m-2
@@ -69,12 +67,12 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
                         key={index} 
                         className={`text-center p-2 w-10 rounded-lg
                             ${selected === item.place ? "bg-secondary text-text" : ""}
-                            ${item.occupation ? "bg-primary-light text-text cursor-not-allowed" :
+                            ${item.occupation == "oui" ? "bg-primary-light text-text cursor-not-allowed" :
                             "bg-primary-light/10 hover:bg-secondary-light active:bg-primary hover:text-text cursor-pointer"
                             }
                         `}
                         onClick={() => {
-                            if (!item.occupation) {
+                            if (item.occupation !== "oui") {
                                 selectP(item.place);
                             }
                         }}
@@ -82,6 +80,21 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
                         {item.place} 
                     </div>
                 ))}
+            </div>
+
+            <div>
+
+                {/* Legende */}
+                <div className="grid grid-cols-2 gap-5 p-5 ml-6 text-text-secondary/80 opacity-80">
+                    <div className="flex items-center gap-2"> 
+                        <div className="w-8 h-8 rounded-xl bg-primary-light"></div>
+                        <p>: Occupé</p>
+                    </div>
+                    <div className="flex items-center gap-2"> 
+                        <div className="w-8 h-8 rounded-xl bg-primary-light/10"></div>
+                        <p>: Libre</p>
+                    </div>
+                </div>
             </div>
         </div>
     );
