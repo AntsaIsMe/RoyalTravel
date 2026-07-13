@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+
+@theme {
+    --color-bg: #f4f7f8;
+    --color-primary: #A35652;
+    --color-primary-light: #B7736F;
+    --color-secondary: #E1C141;
+    --color-secondary-light: #E9D173; 
+    --color-text-secondary: #2c3e50;
+    --color-text: #fbf9f8;
+}
+
+body{
+    @apply bg-bg text-text-secondary;
+    font-family: sans-serif;
+    height: 100%;
+}
+  
+body::selection {
+    @apply bg-secondary text-text;
+}
