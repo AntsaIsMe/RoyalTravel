@@ -88,7 +88,7 @@ export default function ReservInfo() {
     }
 
     return (
-        <div className="p-5 px-10 max-w-2xl">
+        <div className="p-20 px-50">
             {/* En-tête */}
             <div className="flex items-center justify-between mb-6">
                 <div>

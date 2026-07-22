@@ -24,6 +24,7 @@ export default function Select({ label, name, value, onChange, options = [] }) {
                 onChange={onChange}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
+                
                 className={`w-full pt-4 pb-2 pl-3 rounded-lg border border-primary border-b-2 bg-transparent outline-none transition-all duration-200
                     ${isFloating ? "outline outline-primary" : "focus:outline focus:outline-primary"}`}
             >

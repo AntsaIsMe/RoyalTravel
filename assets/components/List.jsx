@@ -1,4 +1,4 @@
-import { Pen, Trash } from "lucide-react";
+import { Pen, Trash, X } from "lucide-react";
 import SearcBar from "./shared/SearchBar";
 import api from "../api/axios";
 import { useEffect, useState } from "react";
@@ -23,10 +23,10 @@ export default function List() {
     const [dataSend, setdataSend] = useState({})
     const [options, setOptions] = useState("")
 
-    const fetchClients = async () => {
+    const fetchClients = async (currentType) => {
         try {
             let res;
-            switch (type) {
+            switch (currentType) {
                 case "reservation":
                     res = await api.get('/reservation');
                     break;
@@ -37,7 +37,7 @@ export default function List() {
                     res = await api.get('/client');
                     break;
             }
-            return (res.data);
+            return res.data;
         } catch (error) {
             console.error("Erreur lors de la récupération :", error.message);
         }
@@ -50,8 +50,21 @@ export default function List() {
         }
     };
     useEffect(() => {
-        getClients();
-    }, [type]); 
+        let cancelled = false;
+    
+        setClients([]);       // efface l'ancien affichage immédiatement, plus de résidu visible
+        setPopType("none");
+        setdataSend({});
+    
+        (async () => {
+            const data = await fetchClients(type);
+            if (!cancelled && data) {
+                setClients(data);
+            }
+        })();
+    
+        return () => { cancelled = true; };
+    }, [type]);
     
     const keys = clients && clients.length > 0 
         ? Object.keys(clients[0]).filter(key => key !== 'idcli' )
@@ -100,21 +113,16 @@ export default function List() {
         }
     };
     
-    // Modification dynamique basée sur le type de la route actuelle
     const modif = (clientInfo) => {
         setPopType(type || "client");
-        
-        // 1. On crée une copie propre de l'objet pour ne pas modifier l'original directement
+    
         const formattedData = { ...clientInfo };
     
-        //change to numtel
         if (formattedData["numéro de télephone"]) {
             formattedData.numtel = formattedData["numéro de télephone"];
-            delete formattedData["numéro de télephone"]; // On supprime l'ancienne clé devenue inutile
+            delete formattedData["numéro de télephone"];
         }
     
-        console.log(formattedData);
-        
         setdataSend(formattedData);
     };
 
@@ -130,20 +138,22 @@ export default function List() {
     }
 
     const search = async (query) => {
-        // Si la barre de recherche est vidée, on recharge tous les clients
         if (!query.trim()) {
-            const data = await fetchClients();
+            const data = await fetchClients(type);
             if (data) setClients(data);
             return;
         }
-
         const data = await searchApi(query);
-        if (data) {
-            setClients(data); // Met à jour le tableau avec les résultats de recherche
-        }
+        if (data) setClients(data);
+    }
+    
+    const closePopUp = (mess) => {
+        setPopType("none");
+        setpopMess(mess);
+        setPopupState("success");
+        fetchClients(type).then(data => data && setClients(data));
     }
 
-    // Corrigé pour prendre l'objet client en paramètre et rediriger correctement selon le type
     const redirectIt = (client)=>{
         switch (type) {
             case "reservation":
@@ -173,31 +183,30 @@ export default function List() {
         const data = filtrApi(val) // Utilise directement 'val' au lieu de 'options'
     }
 
-    const closePopUp = (mess)=>{
-        // console.log("Closed");
-        setPopType("none")
-        setpopMess(mess)
-        setPopupState("success")
-        getClients()
-    }
 
     return (
         <div className="p-5 px-10">
             {/* Affichage du bon composant de modification selon la route */}
             {
                 popType === "client" &&
-                <div>
+                <div className="flex items-center justify-center bg-black/30 w-full h-full absolute top-0 left-0 z-50">
+                    <button onClick={()=>{setPopType("none")}}
+                        className="absolute mb-[230px] ml-[240px]">
+                         <X className="opacity-50 hover:text-primary-light hover:opacity-100 hover:scale-150 transition"/> 
+                    </button>
                     <AddCli modifInfo={dataSend}
-                     className="absolute"
                      modif={true}
                      onChanged={()=>closePopUp("Client modifié")}/>
                 </div>
             }
             {
                 popType === "voiture" &&
-                <div>
+                <div className="flex items-center justify-center bg-black/30 w-full h-full absolute top-0 left-0 z-50">
+                    <button onClick={()=>{setPopType("none")}}
+                        className="absolute mb-[290px] ml-[390px]">
+                         <X className="opacity-50 hover:text-primary-light hover:opacity-100 hover:scale-150 transition"/> 
+                    </button>
                     <AddVoit modifInfo={dataSend}
-                     className="absolute"
                      modif={true}
                      onChanged={()=>closePopUp("Voiture modifié")}
                      />
@@ -205,11 +214,17 @@ export default function List() {
             }
             {
                 popType === "reservation" &&
-                <ModifReserver
-                modifInfo={dataSend}
-                onChanged={() => closePopUp("Réservation modifiée")}
-                className="absolute"
-            />
+                <div className="flex items-center justify-center bg-black/30 w-full h-full absolute top-0 left-0 z-50 overflow-scroll pt-5">
+                    <button onClick={()=>{setPopType("none")}}
+                        className="absolute mb-[230px] ml-[240px]">
+                         <X className="opacity-50 hover:text-primary-light hover:opacity-100 hover:scale-150 transition"/> 
+                    </button>
+                    <ModifReserver
+                    modifInfo={dataSend}
+                    onChanged={() => closePopUp("Réservation modifiée")}
+                    onClose={()=>setPopType("none")}
+                    />
+                </div>
             }
 
             {/* Popup de Confirmation */}
@@ -247,7 +262,6 @@ export default function List() {
                 }
             </div>
 
-            {/* La SearchBar s'affiche UNIQUEMENT si on est sur la route des clients */}
             {(!type || type === "client") && (
                 <div>
                     <SearcBar onSearch={search}/>
@@ -292,13 +306,22 @@ export default function List() {
                                 break;
                         }
 
+                        const isEven = index % 2 === 0;
+                        const animationClass = isEven ? "animate-slide-from-left" : "animate-slide-from-right";
+
                         return (
-                            // Corrigé pour passer la fonction fléchée au clic sur la ligne entière
-                            <tr key={idValue || index} onClick={() => redirectIt(client)} className="cursor-pointer">
+                            <tr 
+                                key={idValue || index} 
+                                onClick={() => redirectIt(client)} 
+                                className={`cursor-pointer ${animationClass}`}
+                                style={{
+                                    animationDelay: `${index * 60}ms`,
+                                    animationFillMode: 'backwards' 
+                                }}
+                            >
                                 {keys.map((key) => (
                                     <td key={key}>{client[key]}</td>
                                 ))}
-                                {/* e.stopPropagation() empêche le clic sur les actions de déclencher redirectIt */}
                                 <td className="flex justify-between px-2 bg-primary-light/5" onClick={(e) => e.stopPropagation()}>
                                     <button type="button" className="opacity-60 hover:opacity-100" onClick={() => modif(client)}>
                                         <Pen className="hover:text-secondary" /> 

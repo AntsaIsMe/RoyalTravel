@@ -27,6 +27,11 @@ export default function AddCli({
 
     const text = !modif ? ["Nouveau client", "Ajouter un client"] : ["Modifier les infos", "Changer quoi ?"]
 
+    // Validation en direct pour activer/désactiver le bouton
+    const cleanDigits = (formData.numtel ?? "").toString().replace(/\s/g, "");
+    const isNumValid = cleanDigits.length > 0 && !cleanDigits.startsWith("-") && Number(cleanDigits) >= 0;
+    const isFormValid = Boolean(formData.nom?.trim()) && isNumValid;
+
     const changeVal = (e) => {
         const { name, value } = e.target;
         
@@ -142,7 +147,7 @@ export default function AddCli({
 
                 <div className="flex gap-5 justify-end w-full mt-10">
                     <Button label={"Annuler"} type="button" full={false} disabled={loading} onClick={reset} className="text-primary" />
-                    <Button label={loading ? "Envoi..." : "Ajouter"} type="submit" disabled={loading} />
+                    <Button label={loading ? "Envoi..." : "Ajouter"} type="submit" disabled={loading || !isFormValid} />
                 </div>
             </form>
         </div>

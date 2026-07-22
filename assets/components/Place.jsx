@@ -1,13 +1,17 @@
-import { LifeBuoy } from "lucide-react"
+import { LifeBuoy } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "../api/axios";
 
-export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
+export default function Place({ idVoit, selectedPlace = null, onSelectPlace = () => {} }) {
     const [places, setPlaces] = useState([]);
-    const [selected, setSelected] = useState(0);
+    const [selected, setSelected] = useState(selectedPlace ?? 0);
     const [loading, setLoading] = useState(true);
 
-    // Appel de l'API au chargement ou quand idVoit change
+    // Synchronise la sélection si la place déjà réservée arrive/change
+    useEffect(() => {
+        setSelected(selectedPlace ?? 0);
+    }, [selectedPlace]);
+
     useEffect(() => {
         if (!idVoit) return;
         
@@ -30,8 +34,6 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
     const style2 = "grid-cols-4";
     let style;
     
-    // console.log(places, idVoit);
-    
     let len = places.length - 2;
     if (len % 3 === 0) {
         style = style1;
@@ -42,7 +44,7 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
     const selectP = (placeNum) => {
         setSelected(placeNum);
         if (onSelectPlace) {
-            onSelectPlace(placeNum); // Envoi au parent
+            onSelectPlace(placeNum);
         }
     };
 
@@ -57,34 +59,52 @@ export default function Place({ idVoit, onSelectPlace = ()=>{} }) {
                 [&_>_div]:m-2
                 ${style}
             `}>
-                <div className={`text-center p-2 w-10 rounded-lg bg-primary-light text-text cursor-not-allowed 
-                    ${!(len % 3 === 0) ? "col-span-2" : ""}`}>
+                {/* Volant / Conducteur */}
+                <div 
+                    className={`text-center p-2 w-10 rounded-lg bg-primary-light text-text cursor-not-allowed animate-pop-in
+                        ${!(len % 3 === 0) ? "col-span-2" : ""}`}
+                    style={{ animationDelay: '0ms', animationFillMode: 'backwards' }}
+                >
                     <LifeBuoy/>
                 </div>
                 
-                {places.map((item, index) => (
-                    <div 
-                        key={index} 
-                        className={`text-center p-2 w-10 rounded-lg
-                            ${selected === item.place ? "bg-secondary text-text" : ""}
-                            ${item.occupation == "oui" ? "bg-primary-light text-text cursor-not-allowed" :
-                            "bg-primary-light/10 hover:bg-secondary-light active:bg-primary hover:text-text cursor-pointer"
-                            }
-                        `}
-                        onClick={() => {
-                            if (item.occupation !== "oui") {
-                                selectP(item.place);
-                            }
-                        }}
-                    > 
-                        {item.place} 
-                    </div>
-                ))}
+                {places.map((item, index) => {
+                    const isSelected = selected === item.place;
+                    // Occupée par une AUTRE réservation seulement
+                    const isOccupiedByOthers = item.occupation === "oui" && !isSelected;
+
+                    // Choix de l'animation : pop avec zoom arrière pour les occupées, simple apparition pour les autres
+                    const animationClass = isOccupiedByOthers 
+                        ? "animate-occupied-pop" 
+                        : "animate-pop-in";
+
+                    return (
+                        <div 
+                            key={item.place || index} 
+                            className={`text-center p-2 w-10 rounded-lg ${animationClass}
+                                ${isSelected ? "bg-secondary text-text" :
+                                isOccupiedByOthers ? "bg-primary-light text-text cursor-not-allowed" :
+                                "bg-primary-light/10 hover:bg-secondary-light active:bg-primary hover:text-text cursor-pointer"
+                                }
+                            `}
+                            style={{ 
+                                animationDelay: `${(index + 1) * 50}ms`,
+                                animationFillMode: 'backwards'
+                            }}
+                            onClick={() => {
+                                if (!isOccupiedByOthers) {
+                                    selectP(item.place);
+                                }
+                            }}
+                        > 
+                            {item.place} 
+                        </div>
+                    );
+                })}
             </div>
 
             <div>
-
-                {/* Legende */}
+                {/* Légende */}
                 <div className="grid grid-cols-2 gap-5 p-5 ml-6 text-text-secondary/80 opacity-80">
                     <div className="flex items-center gap-2"> 
                         <div className="w-8 h-8 rounded-xl bg-primary-light"></div>

@@ -7,6 +7,7 @@ import Select from "../shared/Select";
 import Button from "../shared/Button";
 import Place from "../Place";
 import { ArrowLeftRight, Pen, User, Car } from "lucide-react"; // Ajout de Car pour l'esthétique
+import Popup from "../shared/Popup";
 
 export default function AddReservation(params) {
 
@@ -22,12 +23,24 @@ export default function AddReservation(params) {
     const [error, setError] = useState("");
     const [errorCar, setErrorCar] = useState(""); // Erreur séparée pour éviter les conflits de messages
     const [loading, setLoading] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+
     
     const [searchResults, setSearchResults] = useState([]); 
     const [selectedClient, setSelectedClient] = useState(null);
 
     const [searchResultsCar, setSearchResultsCar] = useState([]); 
     const [selectedCar, setSelectedCar] = useState(null);
+
+    // Validation en direct pour activer/désactiver le bouton
+    const isMontantValid = formData.payement !== "Avec avance"
+        || (formData.montant_avance !== "" && Number(formData.montant_avance) >= 0);
+    const isFormValid = Boolean(formData.idcli)
+        && Boolean(formData.idvoit)
+        && Boolean(formData.place)
+        && Boolean(formData.destination?.trim())
+        && Boolean(formData.payement)
+        && isMontantValid;
 
     const searchCli = async (searchValue) => {
         if (!searchValue.trim()) return;
@@ -133,7 +146,8 @@ export default function AddReservation(params) {
             const res = await api.post("/reservation", formData); 
             
             console.log("Réservation réussie :", res.data);
-            alert("Réservation ajoutée avec succès !");
+            setShowSuccess(true)
+            
             
             // Réinitialise le formulaire après succès
             reset(e); 
@@ -146,6 +160,12 @@ export default function AddReservation(params) {
     };
     return (
         <div className="flex items-center justify-center flex-col p-5 ">
+            <Popup isOpen={showSuccess} onClose={() => setShowSuccess(false)} onConfirm={() => setShowSuccess(false)} title="Réservation ajouté">
+                {
+                    "Nouvelle réservation enregistrée avec succès !"
+                }
+                
+            </Popup>
             <div className="bg-white px-10 py-5 rounded-xl w-xl">
                 <h1 className="text-primary text-2xl">Effectuer une reservation</h1>
                 <div className="caroussel">
@@ -269,7 +289,7 @@ export default function AddReservation(params) {
                     <Button 
                         label={loading ? "Envoi..." : "Ajouter"} 
                         type="button" 
-                        disabled={loading}
+                        disabled={loading || !isFormValid}
                         onClick={submitF} // Déclenchement manuel direct au clic
                     />
                 </div>

@@ -23,10 +23,12 @@ export default function Dropdown({ trigger, children, position = "left" }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
+    const close = () => setIsOpen(false);
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
+                close();
             }
         };
         if (isOpen) {
@@ -39,15 +41,14 @@ export default function Dropdown({ trigger, children, position = "left" }) {
 
     return (
         <div className={styles.container} ref={dropdownRef}>
-            {/* Clic pour intervertir l'état */}
             <div className={styles.trigger} onClick={() => setIsOpen(!isOpen)}>
                 {trigger}
             </div>
 
-            {/* Rendu direct et classique des enfants */}
             {isOpen && (
                 <div className={`${styles.content} ${positionClass} animate-dropdown`}>
-                    {children}
+                    {/* Si children est une fonction, on lui passe la fonction close */}
+                    {typeof children === "function" ? children({ close }) : children}
                 </div>
             )}
         </div>

@@ -23,8 +23,8 @@ export default function App() {
     
     return(
         <>
-            {/* { !load ?  */}
-                {/* <Loader/> :  */}
+            { !load ? 
+                 <Loader/> :  
                  <>
                  <div className='h-full'>
                     <Header/>
@@ -42,7 +42,7 @@ export default function App() {
                     </div>
                  </div>
                 </>
-             {/* }   */}
+              }   
         </>
     )
  }

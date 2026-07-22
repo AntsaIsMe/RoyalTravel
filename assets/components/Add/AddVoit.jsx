@@ -36,6 +36,15 @@ export default function AddVoit({
 
     const text = !modif ? ["Nouvelle voiture", "Ajouter une voiture"] : ["Modifier les infos", "Changer quoi ?"]
 
+    // Validation en direct pour activer/désactiver le bouton
+    const isNbrPlaceValid = formData.nbrplace !== "" && Number(formData.nbrplace) > 0;
+    const isFraisValid = formData.frais !== "" && Number(formData.frais) >= 0;
+    const isFormValid = Boolean(formData.idvoit?.toString().trim())
+        && Boolean(formData.design?.trim())
+        && Boolean(formData.type)
+        && isNbrPlaceValid
+        && isFraisValid;
+
     const changeVal = (e) => {
         const { name, value } = e.target;
 
@@ -166,7 +175,7 @@ export default function AddVoit({
                     <Button 
                         label={loading ? "Envoi..." : (modif ? "Modifier" : "Ajouter")} 
                         type="submit" 
-                        disabled={loading}
+                        disabled={loading || !isFormValid}
                     />
                 </div>
             </form>

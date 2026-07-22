@@ -23,7 +23,7 @@ export default function SearcBar({ onSearch, placeholder =  "Rechercher un clien
     return (
         <form 
             onSubmit={submit} 
-            className="flex items-center justify-center my-5 w-full mx-auto"
+            className="flex items-center justify-center my-5 w-full mx-auto animate-slide-from-left"
         >
             <div className="flex items-center w-full rounded-lg bg-primary-light/10 border border-transparent focus-within:ring-1 focus-within:ring-primary focus-within:border-transparent transition-all">
                 
